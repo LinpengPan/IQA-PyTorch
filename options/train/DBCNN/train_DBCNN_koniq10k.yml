@@ -36,7 +36,8 @@ datasets:
 # network structures
 network:
   type: DBCNN
-  pretrained_scnn_path: './experiments/pretrained_models/DBCNN/scnn.pkl'
+#  pretrained_scnn_path: './experiments/pretrained_models/DBCNN/scnn.pkl'
+  pretrained_scnn_path: ~  # 表示这一项为空
 
 # path
 path:
@@ -50,7 +51,7 @@ train:
     type: SGD
     lr: !!float 1e-3
     momentum: 0.9
-    weight_decay: !!float 5e-4
+    weight_decay: !!float 5e-4  #
 
   optim_finetune:
     type: Adam
@@ -74,7 +75,7 @@ train:
   # losses
   mos_loss_opt:
     type: MSELoss
-    loss_weight: !!float 1.0
+    loss_weight: !!float 1.0  # 表明读入数据为float。
 
   metric_loss_opt:
     type: PLCCLoss

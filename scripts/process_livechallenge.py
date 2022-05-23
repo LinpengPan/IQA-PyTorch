@@ -16,7 +16,7 @@ def get_meta_info():
     mos_labels = mos_labels['AllMOS_release'][0]
     mos_std = mos_std['AllStdDev_release'][0]
 
-    save_meta_path = './datasets/meta_info/meta_info_LIVEChallengeDataset.csv'
+    save_meta_path = '../datasets/meta_info/meta_info_LIVEChallengeDataset.csv'
     with open(save_meta_path, 'w') as f:
         csvwriter = csv.writer(f)
         header = ['img_name', 'mos', 'std']
@@ -36,7 +36,7 @@ def get_random_splits(seed=123):
     ratio = [0.8, 0.2]  # train/val/test
     sep_index = int(round(0.8 * 1162))
 
-    save_path = f'./datasets/meta_info/livechallenge_{seed}.pkl'
+    save_path = f'../datasets/meta_info/livechallenge_{seed}.pkl'
     split_info = {}
     for i in range(num_splits):
         random.shuffle(all_img_index)
@@ -46,5 +46,5 @@ def get_random_splits(seed=123):
 
 
 if __name__ == '__main__':
-    get_meta_info()
-    #  get_random_splits()
+    # get_meta_info()
+    get_random_splits()

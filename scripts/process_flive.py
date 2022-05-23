@@ -29,11 +29,11 @@ from tqdm import tqdm
 
 
 def get_meta_info():
-    patch_label_file = '../../PaQ-2-PiQ/database/labels_patch.csv'
-    img_label_file = '../../PaQ-2-PiQ/database/labels_image.csv'
+    patch_label_file = '../datasets/PaQ-2-PiQ/database/labels_patch.csv'
+    img_label_file = '../datasets/PaQ-2-PiQ/database/labels_image.csv'
 
-    test_label_file = '../../PaQ-2-PiQ/database/labels640.csv'
-    train_label_file = '../../PaQ-2-PiQ/database/labels=640_padded.csv'
+    test_label_file = '../datasets/PaQ-2-PiQ/database/labels640.csv'
+    train_label_file = '../datasets/PaQ-2-PiQ/database/labels=640_padded.csv'
 
     all_patch_label = pd.read_csv(patch_label_file)
     all_img_label = pd.read_csv(img_label_file)
@@ -53,7 +53,7 @@ def get_meta_info():
     test_img_key_list = [x.split('/')[1] for x in test_img_list]
     val_img_key_list = [x.split('/')[1] for x in val_img_list]
 
-    save_meta_path = './datasets/meta_info/meta_info_FLIVEDataset.csv'
+    save_meta_path = '../datasets/meta_info/meta_info_FLIVEDataset.csv'
     split_info = {
         1: {
             'train': [],
@@ -112,7 +112,7 @@ def get_meta_info():
     print(all_img_label.shape[0] + all_patch_label.shape[0])
     print(len(split_info[1]['train']), len(split_info[1]['val']), len(split_info[1]['test']))
     print(sum([len(split_info[1]['train']), len(split_info[1]['val']), len(split_info[1]['test'])]))
-    save_split_path = './datasets/meta_info/flive_official.pkl'
+    save_split_path = '../datasets/meta_info/flive_official.pkl'
     with open(save_split_path, 'wb') as sf:
         pickle.dump(split_info, sf)
 

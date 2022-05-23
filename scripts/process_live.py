@@ -20,7 +20,8 @@ def get_meta_info():
     sub_folders = ['jp2k'] * 227 + ['jpeg'] * 233 + ['wn'] * 174 + ['gblur'] * 174 + ['fastfading'] * 174
     sub_indexes = list(range(1, 228)) + list(range(1, 234)) + list(range(1, 175)) * 3
 
-    save_meta_path = './datasets/meta_info/meta_info_LIVEIQADataset.csv'
+    os.makedirs("../datasets/meta_info", exist_ok=True)
+    save_meta_path = '../datasets/meta_info/meta_info_LIVEIQADataset.csv'
     with open(save_meta_path, 'w') as f:
         csvwriter = csv.writer(f)
         header = ['ref_name', 'dist_name', 'mos']
@@ -35,28 +36,28 @@ def get_meta_info():
 
 def get_random_splits(seed=123):
     random.seed(seed)
-    meta_info_file = './datasets/meta_info/meta_info_LIVEIQADataset.csv'
-    save_path = f'./datasets/meta_info/live_{seed}.pkl'
+    meta_info_file = '../datasets/meta_info/meta_info_LIVEIQADataset.csv'
+    save_path = f'../datasets/meta_info/live_{seed}.pkl'
     ratio = 0.8
 
     meta_info = pd.read_csv(meta_info_file)
 
     ref_img_list = list(set(meta_info['ref_name'].tolist()))
     ref_img_num = len(ref_img_list)
-    num_splits = 10
+    num_splits = 10  # 划分10次训练和测试过程
     train_num = int(ratio * ref_img_num)
 
     split_info = {}
     for i in range(num_splits):
-        split_info[i + 1] = {'train': [], 'val': [], 'test': []}
+        split_info[i + 1] = {'train': [], 'val': [], 'test': []}   # split_info 里面划分的split是从1开始的。
 
     for i in range(num_splits):
         random.shuffle(ref_img_list)
         train_ref_img_names = ref_img_list[:train_num]
         for j in range(meta_info.shape[0]):
-            tmp_ref_name = meta_info.loc[j]['ref_name']
+            tmp_ref_name = meta_info.loc[j]['ref_name']  #
             if tmp_ref_name in train_ref_img_names:
-                split_info[i + 1]['train'].append(j)
+                split_info[i + 1]['train'].append(j)  # split里面存放的 图片在 meta_info_file 里面的位置，从0开始
             else:
                 split_info[i + 1]['val'].append(j)
         print(meta_info.shape[0], len(split_info[i + 1]['train']), len(split_info[i + 1]['val']))
@@ -65,5 +66,5 @@ def get_random_splits(seed=123):
 
 
 if __name__ == '__main__':
-    # get_meta_info()
+    get_meta_info()
     get_random_splits()

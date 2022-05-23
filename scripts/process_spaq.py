@@ -21,7 +21,7 @@ def get_meta_info():
     new_head[-2] = 'Time0'
     new_head[-1] = 'Time1'
 
-    save_meta_path = './datasets/meta_info/meta_info_SPAQDataset.csv'
+    save_meta_path = '../datasets/meta_info/meta_info_SPAQDataset.csv'
     with open(save_meta_path, 'w+') as sf:
         csvwriter = csv.writer(sf)
         csvwriter.writerow(new_head)
@@ -40,7 +40,7 @@ def get_random_splits(seed=123):
     total_num = 11125
     all_img_index = list(range(total_num))
     num_splits = 10
-    save_path = f'./datasets/meta_info/spaq_seed{seed}.pkl'
+    save_path = f'../datasets/meta_info/spaq_seed{seed}.pkl'
 
     ratio = [0.8, 0.2]  # train/val/test
     sep_index = int(round(0.8 * total_num))
@@ -54,5 +54,5 @@ def get_random_splits(seed=123):
 
 
 if __name__ == '__main__':
-    # get_meta_info()
+    get_meta_info()
     get_random_splits()

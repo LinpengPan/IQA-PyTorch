@@ -14,7 +14,7 @@ def get_meta_info():
     """
     info_file = '../datasets/koniq10k/koniq10k_distributions_sets.csv'
 
-    save_meta_path = './datasets/meta_info/meta_info_KonIQ10kDataset.csv'
+    save_meta_path = '../datasets/meta_info/meta_info_KonIQ10kDataset.csv'
     split_info = {'train': [], 'val': [], 'test': []}
     with open(info_file, 'r') as f, open(save_meta_path, 'w+') as sf:
         csvreader = csv.reader(f)
@@ -39,11 +39,11 @@ def get_meta_info():
             print(new_row)
             csvwriter.writerow(new_row)
 
-    save_split_path = './datasets/meta_info/koniq10k_official.pkl'
+    save_split_path = '../datasets/meta_info/koniq10k_official.pkl'
     with open(save_split_path, 'wb') as sf:
         pickle.dump({1: split_info}, sf)
 
 
 if __name__ == '__main__':
     get_meta_info()
-    #  get_random_splits()
+    # get_random_splits()
