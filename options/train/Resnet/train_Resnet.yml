@@ -1,8 +1,6 @@
 # general settings
-# name: debug_DBCNN_LIVEC
-name: debug001_HyperNet_KonIQ10k  # 本次实验的名字
-#name: 004_HyperNet_KonIQ10k
-model_type: HyperNetModel
+name: MSEResnet18_KonIQ10k  # 本次实验的名字
+model_type: GeneralIQAModel
 num_gpu: 1  # set num_gpu: 0 for cpu mode
 manual_seed: 123
 
@@ -21,16 +19,16 @@ datasets:
     img_range: 1
 
     # data loader
-    use_shuffle: true
-    num_worker_per_gpu: 4
-    batch_size_per_gpu: 48
+    use_shuffle: true  # 这个参数没有用的地方，实际中是根据epoch设置的随机数种子进行采样的。
+    num_worker_per_gpu: 16
+    batch_size_per_gpu: 96
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
+    use_rank: true
 
   val:
     name: koniq10k
     type: GeneralNRDataset
-#    dataroot_target: ./datasets/koniq10k/512x384
     dataroot_target: /media/disk/lin/linpeng/code/IQA-PyTorch/datasets/koniq10k/1124
     meta_info_file: /media/disk/lin/linpeng/code/IQA-PyTorch/datasets/meta_info/meta_info_KonIQ10kDataset.csv
     split_file: /media/disk/lin/linpeng/code/IQA-PyTorch/datasets/meta_info/koniq10k_official.pkl
@@ -40,7 +38,9 @@ datasets:
 
 # network structures
 network:
-  type: HyperNet
+  type: Resnet
+  model_name: resnet18
+  pretrained: true
 
 # path
 path:
@@ -52,23 +52,25 @@ path:
 train:
   optim:
     type: Adam
-    lr_basemodel: !!float 2e-5
-    lr_others: !!float 2e-4
-    lr: !!float 2e-4
+    lr: !!float 1e-3
     weight_decay: !!float 5e-4
 
   scheduler:
     type: MultiStepLR
-    milestones: [400, 800]
+    milestones: [9125, 18250]
     gamma: 0.1
 
-  total_iter: 4000 # 883 iter/epoch, train/finetune for about 30 epochs
+  total_iter: 27375 # 73 iter/epoch, about 375 epoch
   warmup_iter: -1  # no warm up
 
   # losses
   mos_loss_opt:
-    type: PLCCLoss
+#    type: ListMonotonicSRCCLoss
+#    loss_weight_PLCC: !!float 1.0
+#    loss_weight_SRCC: !!float 1.0
+    type: MSELoss
     loss_weight: !!float 1.0
+
 
 # validation settings
 val:
@@ -88,8 +90,8 @@ val:
       type: calculate_krcc
 
 # logging settings
-logger:
-  print_freq: 20
+logger:  # debug模式下，这些设置无效
+  print_freq: 30
   save_checkpoint_freq: !!float 5e9
   save_latest_freq: !!float 5e2
   use_tb_logger: true

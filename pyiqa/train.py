@@ -6,7 +6,7 @@ import torch
 import os
 from os import path as osp
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 from pyiqa.data import build_dataloader, build_dataset
 from pyiqa.data.data_sampler import EnlargedSampler
 from pyiqa.data.prefetch_dataloader import CPUPrefetcher, CUDAPrefetcher
@@ -23,7 +23,7 @@ def init_tb_loggers(opt):
         assert opt['logger'].get('use_tb_logger') is True, ('should turn on tensorboard when using wandb')
         init_wandb_logger(opt)
     tb_logger = None
-    if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name']:
+    if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name']:  # 实验名字带有debug关键词时，不适用tb logger。
         tb_logger = init_tb_logger(log_dir=osp.join(opt['root_path'], 'tb_logger', opt['name']))
     return tb_logger
 
@@ -33,8 +33,8 @@ def create_train_val_dataloader(opt, logger):
     train_loader, val_loaders = None, []
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train':
-            dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1)
-            train_set = build_dataset(dataset_opt)
+            dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1)  # 默认值为1
+            train_set = build_dataset(dataset_opt)  # 构建dataset的过程并没有从一张图像上裁剪出25个patch的操作，因此需要通过增加epoch数来完成
             train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], dataset_enlarge_ratio)
             train_loader = build_dataloader(
                 train_set,
@@ -69,7 +69,7 @@ def create_train_val_dataloader(opt, logger):
 
 def load_resume_state(opt):
     resume_state_path = None
-    if opt['auto_resume']:
+    if opt['auto_resume']:  # 自动恢复，即从实验中恢复
         state_path = osp.join('experiments', opt['name'], 'training_states')
         if osp.isdir(state_path):
             states = list(scandir(state_path, suffix='state', recursive=False, full_path=False))
@@ -92,7 +92,7 @@ def load_resume_state(opt):
 
 def train_pipeline(root_path):
     # parse options, set distributed setting, set ramdom seed
-    opt, args = parse_options(root_path, is_train=True)
+    opt, args = parse_options(root_path, is_train=True)  # 在这里会创建实验文件夹，把各种日志路径添加好
     opt['root_path'] = root_path
 
     torch.backends.cudnn.benchmark = True

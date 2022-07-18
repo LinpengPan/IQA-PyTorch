@@ -24,7 +24,7 @@ class GeneralNRDataset(data.Dataset):
         self.opt = opt
 
         target_img_folder = opt['dataroot_target']
-        self.paths_mos = read_meta_info_file(target_img_folder, opt['meta_info_file'])
+        self.paths_mos = read_meta_info_file(target_img_folder, opt['meta_info_file'])  # 获取图片路径和mos分值。
 
         # read train/val/test splits
         split_file_path = opt.get('split_file', None)
@@ -33,9 +33,9 @@ class GeneralNRDataset(data.Dataset):
             with open(opt['split_file'], 'rb') as f:
                 split_dict = pickle.load(f)
                 splits = split_dict[split_index][opt['phase']]
-            self.paths_mos = [self.paths_mos[i] for i in splits]
+            self.paths_mos = [self.paths_mos[i] for i in splits]  # split 划分了训练集和测试集，里面存放的是索引。
 
-        dmos_max = opt.get('dmos_max', 0.)
+        dmos_max = opt.get('dmos_max', 0.)  # 把 dmos转换成mos
         if dmos_max:
             self.use_dmos = True
             self.dmos_max = opt.get('dmos_max')

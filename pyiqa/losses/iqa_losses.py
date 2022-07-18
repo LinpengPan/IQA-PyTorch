@@ -40,6 +40,7 @@ def plcc_loss(pred, target):
     Args:
         pred (Tensor): of shape (N, 1). Predicted tensor.
         target (Tensor): of shape (N, 1). Ground truth tensor.
+        计算公式是对的，可能是第二种计算公式
     """
     batch_size = pred.shape[0]
     if batch_size > 1:
@@ -69,7 +70,7 @@ class PLCCLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class SRCCLoss(nn.Module):
     """Ranked PLCC loss, induced from Spearman correlation coefficient
-
+    这个loss是错的，srcc是对排序后的位置序列做plcc而不是对排序后的数据做plcc。
     """
 
     def __init__(self, loss_weight=1.0):
@@ -80,6 +81,42 @@ class SRCCLoss(nn.Module):
         pred = torch.sort(pred, dim=-1)
         target = torch.sort(target, dim=-1)
         return self.loss_weight * plcc_loss(pred, target)
+
+
+@LOSS_REGISTRY.register()
+class ListMonotonicLoss(nn.Module):
+
+    def __init__(self, loss_weight=1.0):
+        """
+        eps：控制分值的间隔
+        :param eps: 需要测试一下
+        """
+        super().__init__()
+        self._eps = nn.parameter.Parameter(torch.randn([1, 1]))  # 自适应松弛能使求导过程更稳定。
+        self.loss_weight = loss_weight
+
+    def forward(self, x_predict):
+        """
+        输入的图像按照质量真值按照降序排列
+        :param x_predict:
+        :return:
+        """
+
+        x_predict = torch.unsqueeze(x_predict, 1)
+        loss = torch.sum(torch.clip(torch.triu(torch.transpose(x_predict, 0, 1) - x_predict - self._eps, 1), min=0))
+        return self.loss_weight * loss
+
+
+@LOSS_REGISTRY.register()
+class ListMonotonicSRCCLoss(nn.Module):
+
+    def __init__(self, loss_weight_PLCC=1.0, loss_weight_SRCC=1.0):
+        super(ListMonotonicSRCCLoss, self).__init__()
+        self.list_monotonic_loss = ListMonotonicLoss(loss_weight_SRCC)
+        self.plcc_loss = PLCCLoss(loss_weight_PLCC)
+
+    def forward(self, pred, target):
+        return self.plcc_loss(pred, target) + self.list_monotonic_loss(pred)
 
 
 def norm_loss_with_normalization(pred, target, p, q):

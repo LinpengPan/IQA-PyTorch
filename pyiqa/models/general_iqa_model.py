@@ -82,7 +82,7 @@ class GeneralIQAModel(BaseModel):
 
     def net_forward(self, net):
         if self.use_ref:
-            return net(self.img_input, self.ref_input)
+            return net(self.img_input, self.ref_input)  # 如果是不同的前向传播方式需要重新写该函数
         else:
             return net(self.img_input)
 

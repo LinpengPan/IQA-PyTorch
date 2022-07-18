@@ -131,7 +131,7 @@ class HyperNet(nn.Module):
         results = results.reshape(sample_num, b).mean(dim=0)
         return results.unsqueeze(-1)
 
-    def forward_patch(self, x):
+    def forward_patch(self, x):  # 这里还是需要直接吧x作为224 224 的图像块传进来，说明，切块的操作还是在dataloader那里。
         assert x.shape[2:] == torch.Size([224, 224]), f'Input patch size must be (224, 224), but got {x.shape[2:]}'
         x = self.preprocess(x)
 

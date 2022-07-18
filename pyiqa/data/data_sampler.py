@@ -16,6 +16,7 @@ class EnlargedSampler(Sampler):
             the training. It is usually the world_size.
         rank (int | None): Rank of the current process within num_replicas.
         ratio (int): Enlarging ratio. Default: 1.
+    只有分布式训练的时候需要
     """
 
     def __init__(self, dataset, num_replicas, rank, ratio=1):

@@ -8,6 +8,7 @@ from functools import partial
 from os import path as osp
 
 from pyiqa.data.prefetch_dataloader import PrefetchDataLoader
+from pyiqa.data.prefetch_dataloader import DataLoaderX
 from pyiqa.utils import get_root_logger, scandir
 from pyiqa.utils.dist_util import get_dist_info
 from pyiqa.utils.registry import DATASET_REGISTRY
@@ -83,6 +84,7 @@ def build_dataloader(dataset, dataset_opt, num_gpu=1, dist=False, sampler=None, 
 
     dataloader_args['pin_memory'] = dataset_opt.get('pin_memory', False)
     dataloader_args['persistent_workers'] = dataset_opt.get('persistent_workers', False)
+    use_rank = dataset_opt.get('use_rank')
 
     prefetch_mode = dataset_opt.get('prefetch_mode')
     if prefetch_mode == 'cpu':  # CPUPrefetcher
@@ -93,7 +95,10 @@ def build_dataloader(dataset, dataset_opt, num_gpu=1, dist=False, sampler=None, 
     else:
         # prefetch_mode=None: Normal dataloader
         # prefetch_mode='cuda': dataloader for CUDAPrefetcher
-        return torch.utils.data.DataLoader(**dataloader_args)
+        if use_rank and phase == 'train':
+            return DataLoaderX(**dataloader_args, collate_fn=DataLoaderX.my_collate_fn)  # 这部分的代码需要测试
+        else:
+            return torch.utils.data.DataLoader(**dataloader_args)
 
 
 def worker_init_fn(worker_id, num_workers, rank, seed):

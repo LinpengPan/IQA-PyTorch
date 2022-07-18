@@ -6,7 +6,7 @@ num_gpu: 1  # set num_gpu: 0 for cpu mode
 manual_seed: 123
 
 # dataset and data loader settings
-datasets:
+datasets:  # 解析后的结果应该是字典
   train:
     name: general_iqa_dataset
     type: GeneralFRDataset
@@ -40,6 +40,7 @@ datasets:
     batch_size_per_gpu: 8
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
+    use_rank: false  # 当使用单调性损失时必须位true,且prefetch number必须为~
 
   val:
     name: general_iqa_dataset
@@ -82,7 +83,7 @@ train:
     lr: !!float 1e-4
 
   scheduler:
-    type: MultiStepLR
+    type: MultiStepLR  # 仅支持MultiStepLR MultiStepRestartLR 和 CosineAnnealingRestartLR
     milestones: [1000]
     gamma: 1
 

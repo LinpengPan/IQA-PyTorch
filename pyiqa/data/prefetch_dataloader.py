@@ -2,6 +2,7 @@ import queue as Queue
 import threading
 import torch
 from torch.utils.data import DataLoader
+from prefetch_generator import BackgroundGenerator
 
 
 class PrefetchGenerator(threading.Thread):
@@ -123,3 +124,42 @@ class CUDAPrefetcher():
     def reset(self):
         self.loader = iter(self.ori_loader)
         self.preload()
+
+
+class DataLoaderX(torch.utils.data.DataLoader):
+    """
+    使用prefetch_generator包提供的数据预加载功能,需要安装prefetch_generator
+    """
+    def __iter__(self):
+        return BackgroundGenerator(super().__iter__())
+
+    @staticmethod
+    def my_collate_fn(batch):
+        """
+        把一个batch内部的数据按照score进行降序排序，
+        :param batch: 图像，score的列表 [[image_0, score_0], [image_1, score_1], ...]
+        :return:
+        """
+        # print(type(batch[0]))
+        # imgs = batch['img']
+        # mos_labels = batch['mos_label']
+        # imgs_path = batch["img_path"]
+        #
+        # rankbatch = [[img, mos, path] for img, mos, path in zip(imgs, mos_labels, imgs_path)]
+        # rankbatch.sort(key=lambda x: x[1], reverse=True)
+        #
+        image_sequence = []
+        score_sequence = []
+        imgs_path_sequence = []
+        batch.sort(key=lambda x: x['mos_label'], reverse=True)
+
+        for item in batch:
+            image_sequence.append(item['img'])
+            score_sequence.append(item['mos_label'])
+            imgs_path_sequence.append(item['img_path'])
+
+        image_sequence = torch.utils.data.dataloader.default_collate(image_sequence)
+        score_sequence = torch.utils.data.dataloader.default_collate(score_sequence)
+        imgs_path_sequence = torch.utils.data.dataloader.default_collate(imgs_path_sequence)
+
+        return {"img": image_sequence, "mos_label": score_sequence, "img_path": imgs_path_sequence}

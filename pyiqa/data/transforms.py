@@ -10,6 +10,7 @@ import torchvision.transforms.functional as F
 
 
 def transform_mapping(key, value):
+    # 目前仅支持这几种数据增强方法
     if key == 'hflip' and value:
         return [PairedRandomHorizontalFlip()]
     elif key == 'random_crop':
