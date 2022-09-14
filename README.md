@@ -11,11 +11,10 @@ This is a image quality assessment toolbox with **pure python and pytorch**. We 
 - :sparkles: **Fast.** With GPU acceleration, most of our implementation is much faster than Matlab.
 - :sparkles: **Flexible.** Support training new DNN models with several public IQA datasets
 - :sparkles: **Differentiable.** Most methods support pytorch backward
-- :sparkles: **Convenient.** Quick inference and benchmark script
 
 Below are details of supported methods and datasets in this project.
 
-<details open>
+<details close>
 <summary>Supported methods and datasets:</summary>
 
 <table>
@@ -23,6 +22,7 @@ Below are details of supported methods and datasets in this project.
 
 | FR Method                | Backward           |
 | ------------------------ | ------------------ |
+| AHIQ                     | :white_check_mark: |
 | PieAPP                   | :white_check_mark: |
 | LPIPS                    | :white_check_mark: |
 | DISTS                    | :white_check_mark: |
@@ -43,6 +43,8 @@ Below are details of supported methods and datasets in this project.
 
 | NR Method                    | Backward                 |
 | ---------------------------- | ------------------------ |
+| FID                          | :heavy_multiplication_x: |
+| MANIQA                       | :white_check_mark:       |
 | MUSIQ                        | :white_check_mark:       |
 | DBCNN                        | :white_check_mark:       |
 | PaQ-2-PiQ                    | :white_check_mark:       |
@@ -52,10 +54,11 @@ Below are details of supported methods and datasets in this project.
 | CNNIQA                       | :white_check_mark:       |
 | NRQM(Ma)<sup>[2](#fn2)</sup> | :heavy_multiplication_x: |
 | PI(Perceptual Index)         | :heavy_multiplication_x: |
-| HOSA                         | :hourglass_flowing_sand: |
 | BRISQUE                      | :white_check_mark:       |
 | ILNIQE                       | :white_check_mark:       |
 | NIQE                         | :white_check_mark:       |
+
+<!-- | HOSA                         | :hourglass_flowing_sand: | -->
 
 </td><td>
 
@@ -88,16 +91,15 @@ Below are details of supported methods and datasets in this project.
 
 ### :triangular_flag_on_post: Updates/Changelog
 
+- **Sep 1, 2022**. 1) Add pretrained models for MANIQA and AHIQ. 2) Add dataset interface for pieapp and PIPAL.
+- **June 3, 2022**. Add FID metric. See [clean-fid](https://github.com/GaParmar/clean-fid) for more details.
 - **March 11, 2022**. Add pretrained DBCNN, NIMA, and official model of PieAPP, paq2piq.
-- **March 5, 2022**. Add NRQM, PI, ILNIQE metrics.
-- **Feb 2, 2022**. Add MUSIQ inference code, and the converted official weights. See [Official codes](https://github.com/google-research/google-research/tree/master/musiq).
 - [**More**](docs/history_changelog.md)
 
 ---
 
 ### :hourglass_flowing_sand: TODO List
 
-- :white_check_mark: Benchmark with retrained models of DBCNN, NIMA, etc.
 - :white_large_square: Add pretrained models on different datasets.
 
 ---
@@ -123,42 +125,53 @@ pip install -r requirements.txt
 python setup.py develop
 ```
 
-### Quick Inference
+### Basic Usage 
 
-#### Test script
-
-Example test script with input directory and reference directory. Single image is also supported for `-i` and `-r` options.
-```
-# example for FR metric with dirs
-python inference_iqa.py -n LPIPS[or lpips] -i ./ResultsCalibra/dist_dir -r ./ResultsCalibra/ref_dir
-
-# example for NR metric with single image
-python inference_iqa.py -n brisque -i ./ResultsCalibra/dist_dir/I03.bmp
-```
-
-#### Used as functions in your project
 ```
 import pyiqa
+import torch
 
 # list all available metrics
 print(pyiqa.list_models())
 
 # create metric with default setting
-iqa_metric = pyiqa.create_metric('lpips').to(device)
+iqa_metric = pyiqa.create_metric('lpips', device=torch.device('cuda'))
+# Note that gradient propagation is disabled by default. set as_loss=True to enable it as a loss function.
+iqa_loss = pyiqa.create_metric('lpips', device=torch.device('cuda'), as_loss=True)
 
 # create metric with custom setting
-iqa_metric = pyiqa.create_metric('psnr', test_y_channel=True).to(device)
+iqa_metric = pyiqa.create_metric('psnr', test_y_channel=True, color_space='ycbcr').to(device)
 
 # check if lower better or higher better
 print(iqa_metric.lower_better)
 
 # example for iqa score inference
-# img_tensor_x/y: (N, 3, H, W), RGB, 0 ~ 1
+# Tensor inputs, img_tensor_x/y: (N, 3, H, W), RGB, 0 ~ 1
 score_fr = iqa_metric(img_tensor_x, img_tensor_y)
 score_nr = iqa_metric(img_tensor_x)
+
+# img path as inputs.
+score_fr = iqa_metric('./ResultsCalibra/dist_dir/I03.bmp', './ResultsCalibra/ref_dir/I03.bmp')
+
+# For FID metric, use directory or precomputed statistics as inputs
+# refer to clean-fid for more details: https://github.com/GaParmar/clean-fid
+fid_metric = pyiqa.create_metric('fid')
+score = fid_metric('./ResultsCalibra/dist_dir/', './ResultsCalibra/ref_dir')
+score = fid_metric('./ResultsCalibra/dist_dir/', dataset_name="FFHQ", dataset_res=1024, dataset_split="trainval70k")
 ```
 
-Metrics which support backward can be used for optimization, such as image enhancement.
+
+#### Example Test script
+
+Example test script with input directory/images and reference directory/images. 
+```
+# example for FR metric with dirs
+python inference_iqa.py -m LPIPS[or lpips] -i ./ResultsCalibra/dist_dir[dist_img] -r ./ResultsCalibra/ref_dir[ref_img]
+
+# example for NR metric with single image
+python inference_iqa.py -m brisque -i ./ResultsCalibra/dist_dir/I03.bmp
+```
+
 
 ## :hammer_and_wrench: Train
 
@@ -249,22 +262,9 @@ TODO -->
 
 ## :heart: Acknowledgement
 
-The code architecture is borrowed from [BasicSR](https://github.com/xinntao/BasicSR). Several implementations are taken from
+The code architecture is borrowed from [BasicSR](https://github.com/xinntao/BasicSR). Several implementations are taken from: [IQA-optimization](https://github.com/dingkeyan93/IQA-optimization), [Image-Quality-Assessment-Toolbox](https://github.com/RyanXingQL/Image-Quality-Assessment-Toolbox), [piq](https://github.com/photosynthesis-team/piq), [piqa](https://github.com/francois-rozet/piqa), [clean-fid](https://github.com/GaParmar/clean-fid)
 
-- [IQA-optimization](https://github.com/dingkeyan93/IQA-optimization)
-- [Image-Quality-Assessment-Toolbox](https://github.com/RyanXingQL/Image-Quality-Assessment-Toolbox)
-- [piq](https://github.com/photosynthesis-team/piq)
-- [piqa](https://github.com/francois-rozet/piqa)
-
-We also thanks the following public repositories:
-- [MUSIQ](https://github.com/google-research/google-research/tree/master/musiq)
-- [DBCNN](https://github.com/zwx8981/DBCNN-PyTorch)
-- [NIMA](https://github.com/kentsyx/Neural-IMage-Assessment)
-- [HyperIQA](https://github.com/SSL92/hyperIQA)
-- [CNNIQA](https://github.com/lidq92/CNNIQA)
-- [WaDIQaM](https://github.com/lidq92/WaDIQaM)
-- [PieAPP](https://github.com/prashnani/PerceptualImageError)
-- [paq2piq](https://github.com/baidut/paq2piq)
+We also thanks the following public repositories: [MUSIQ](https://github.com/google-research/google-research/tree/master/musiq), [DBCNN](https://github.com/zwx8981/DBCNN-PyTorch), [NIMA](https://github.com/kentsyx/Neural-IMage-Assessment), [HyperIQA](https://github.com/SSL92/hyperIQA), [CNNIQA](https://github.com/lidq92/CNNIQA), [WaDIQaM](https://github.com/lidq92/WaDIQaM), [PieAPP](https://github.com/prashnani/PerceptualImageError), [paq2piq](https://github.com/baidut/paq2piq), [MANIQA](https://github.com/IIGROUP/MANIQA) 
 
 ## :e-mail: Contact
 

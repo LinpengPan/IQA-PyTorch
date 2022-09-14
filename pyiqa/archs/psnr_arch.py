@@ -56,12 +56,19 @@ class PSNR(nn.Module):
         score (torch.Tensor): (B, 1)
     """
 
-    def __init__(self, test_y_channel=False, **kwargs):
+    def __init__(self, test_y_channel=False, crop_border=0, **kwargs):
         super().__init__()
         self.test_y_channel = test_y_channel
         self.kwargs = kwargs
+        self.crop_border = crop_border
 
     def forward(self, X, Y):
         assert X.shape == Y.shape, f'Input and reference images should have the same shape, but got {X.shape} and {Y.shape}'
+
+        if self.crop_border != 0:
+            crop_border = self.crop_border
+            X = X[..., crop_border:-crop_border, crop_border:-crop_border]
+            Y = Y[..., crop_border:-crop_border, crop_border:-crop_border]
+
         score = psnr(X, Y, self.test_y_channel, **self.kwargs)
         return score

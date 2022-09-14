@@ -58,6 +58,15 @@ def imfilter(input, weight, bias=None, stride=1, padding='same', dilation=1, gro
     return F.conv2d(pad_func(input), weight, bias, stride, dilation=dilation, groups=groups)
 
 
+def filter2(input, weight, shape='same'):
+    if shape == 'same':
+        return imfilter(input, weight, groups=input.shape[1])
+    elif shape == 'valid':
+        return F.conv2d(input, weight, stride=1, padding=0, groups=input.shape[1])
+    else:
+        raise NotImplementedError(f'Shape type {shape} is not implemented.')
+
+
 def dct(x, norm=None):
     """
     Discrete Cosine Transform, Type II (a.k.a. the DCT)
@@ -172,9 +181,11 @@ def nancov(x):
     assert len(x.shape) == 3, f'Shape of input should be (batch_size, row_num, feat_dim), but got {x.shape}'
     b, rownum, feat_dim = x.shape
     nan_mask = torch.isnan(x).any(dim=2, keepdim=True)
-    x_no_nan = x.masked_select(~nan_mask).reshape(b, -1, feat_dim)
-    cov_x = cov(x_no_nan, rowvar=False)
-    return cov_x
+    cov_x = []
+    for i in range(b):
+        x_no_nan = x[i].masked_select(~nan_mask[i]).reshape(-1, feat_dim)
+        cov_x.append(cov(x_no_nan, rowvar=False))
+    return torch.stack(cov_x)
 
 
 def nanmean(v, *args, inplace=False, **kwargs):

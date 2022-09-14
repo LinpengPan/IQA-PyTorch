@@ -12,7 +12,7 @@ from pyiqa.data.data_sampler import EnlargedSampler
 from pyiqa.data.prefetch_dataloader import CPUPrefetcher, CUDAPrefetcher
 from pyiqa.models import build_model
 from pyiqa.utils import (AvgTimer, MessageLogger, check_resume, get_env_info, get_root_logger, get_time_str,
-                         init_tb_logger, init_wandb_logger, make_exp_dirs, mkdir_and_rename, scandir)
+                           init_tb_logger, init_wandb_logger, make_exp_dirs, mkdir_and_rename, scandir)
 from pyiqa.utils.options import copy_opt_file, dict2str, parse_options
 
 
@@ -33,9 +33,11 @@ def create_train_val_dataloader(opt, logger):
     train_loader, val_loaders = None, []
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train':
-            dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1)  # 默认值为1
-            train_set = build_dataset(dataset_opt)  # 构建dataset的过程并没有从一张图像上裁剪出25个patch的操作，因此需要通过增加epoch数来完成
-            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], dataset_enlarge_ratio)
+
+            dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1) # 默认值为1
+            train_set = build_dataset(dataset_opt) # 构建dataset的过程并没有从一张图像上裁剪出25个patch的操作，因此需要通过增加epoch数来完成
+            train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], dataset_enlarge_ratio, dataset_opt.get('use_shuffle', True))
+
             train_loader = build_dataloader(
                 train_set,
                 dataset_opt,
@@ -46,8 +48,16 @@ def create_train_val_dataloader(opt, logger):
 
             num_iter_per_epoch = math.ceil(
                 len(train_set) * dataset_enlarge_ratio / (dataset_opt['batch_size_per_gpu'] * opt['world_size']))
-            total_iters = int(opt['train']['total_iter'])
-            total_epochs = math.ceil(total_iters / (num_iter_per_epoch))
+
+            total_epochs = opt['train'].get('total_epoch', None)
+            if total_epochs is not None:
+                total_epochs = int(total_epochs)
+                total_iters = total_epochs * (num_iter_per_epoch)
+                opt['train']['total_iter'] = total_iters
+            else:
+                total_iters = int(opt['train']['total_iter'])
+                total_epochs = math.ceil(total_iters / (num_iter_per_epoch))
+
             logger.info('Training statistics:'
                         f'\n\tNumber of train images: {len(train_set)}'
                         f'\n\tDataset enlarge ratio: {dataset_enlarge_ratio}'
@@ -90,9 +100,10 @@ def load_resume_state(opt):
     return resume_state
 
 
-def train_pipeline(root_path):
+def train_pipeline(root_path, opt=None, args=None):
     # parse options, set distributed setting, set ramdom seed
-    opt, args = parse_options(root_path, is_train=True)  # 在这里会创建实验文件夹，把各种日志路径添加好
+    if opt is None and args is None:
+        opt, args = parse_options(root_path, is_train=True)  # 在这里会创建实验文件夹，把各种日志路径添加好
     opt['root_path'] = root_path
 
     torch.backends.cudnn.benchmark = True
@@ -166,7 +177,7 @@ def train_pipeline(root_path):
             if current_iter > total_iters:
                 break
             # update learning rate
-            model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
+            # model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
             # training
             model.feed_data(train_data)
             model.optimize_parameters(current_iter)
@@ -182,7 +193,15 @@ def train_pipeline(root_path):
                 log_vars.update({'time': iter_timer.get_avg_time(), 'data_time': data_timer.get_avg_time()})
                 log_vars.update(model.get_current_log())
                 msg_logger(log_vars)
-
+            
+            # log images
+            log_img_freq = opt['logger'].get('log_imgs_freq', 1e99)
+            if current_iter % log_img_freq == 0:
+                visual_imgs = model.get_current_visuals()
+                if tb_logger and visual_imgs is not None:
+                    for k, v in visual_imgs.items(): 
+                        tb_logger.add_images(f'ckpt_imgs/{k}', v.clamp(0, 1), current_iter)
+   
             # save models and training states
             save_ckpt_freq = opt['logger'].get('save_checkpoint_freq', 9e9)
             if current_iter % save_ckpt_freq == 0:
@@ -191,7 +210,7 @@ def train_pipeline(root_path):
 
             if current_iter % opt['logger']['save_latest_freq'] == 0:
                 logger.info('Saving latest models and training states.')
-                model.save(epoch, -1)
+                model.save(epoch, -1) 
 
             # validation
             if opt.get('val') is not None and (current_iter % opt['val']['val_freq'] == 0):
@@ -204,6 +223,8 @@ def train_pipeline(root_path):
             iter_timer.start()
             train_data = prefetcher.next()
         # end of iter
+        # use epoch based learning rate scheduler
+        model.update_learning_rate(epoch+2, warmup_iter=opt['train'].get('warmup_iter', -1))
 
     # end of epoch
 
@@ -217,6 +238,7 @@ def train_pipeline(root_path):
     if tb_logger:
         tb_logger.close()
 
+    return model.best_metric_results
 
 if __name__ == '__main__':
     root_path = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir))

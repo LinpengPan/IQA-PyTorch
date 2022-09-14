@@ -1,13 +1,16 @@
+from cv2 import reduce
 import torch
 import numpy as np
 from torch import nn as nn
 from torch.nn import functional as F
 
 from pyiqa.utils.registry import LOSS_REGISTRY
+from .loss_util import weighted_loss
 
 _reduction_modes = ['none', 'mean', 'sum']
 
 
+@weighted_loss
 def emd_loss(pred, target, r=2):
     """
     Args:
@@ -17,7 +20,7 @@ def emd_loss(pred, target, r=2):
     """
     loss = torch.abs(torch.cumsum(pred, dim=-1) - torch.cumsum(target, dim=-1))**r
     loss = loss.mean(dim=-1)**(1. / r)
-    return loss.mean()
+    return loss
 
 
 @LOSS_REGISTRY.register()
@@ -26,13 +29,16 @@ class EMDLoss(nn.Module):
 
     """
 
-    def __init__(self, loss_weight=1.0, r=2):
+    def __init__(self, loss_weight=1.0, r=2, reduction='mean'):
         super(EMDLoss, self).__init__()
+        if reduction not in ['none', 'mean', 'sum']:
+            raise ValueError(f'Unsupported reduction mode: {reduction}. Supported ones are: {_reduction_modes}')
         self.loss_weight = loss_weight
         self.r = r
+        self.reduction = reduction
 
-    def forward(self, pred, target):
-        return self.loss_weight * emd_loss(pred, target, self.r)
+    def forward(self, pred, target, weight=None, **kwargs):
+        return self.loss_weight * emd_loss(pred, target, r=self.r, weight=weight, reduction=self.reduction)
 
 
 def plcc_loss(pred, target):
@@ -68,24 +74,31 @@ class PLCCLoss(nn.Module):
 
 
 @LOSS_REGISTRY.register()
-class SRCCLoss(nn.Module):
-    """Ranked PLCC loss, induced from Spearman correlation coefficient
-    这个loss是错的，srcc是对排序后的位置序列做plcc而不是对排序后的数据做plcc。
+class RankLoss(nn.Module):
+    """Monotonicity regularization loss, will be zero when rankings of pred and target are the same.
+
+    Reference:
+        - https://github.com/lidq92/LinearityIQA/blob/master/IQAloss.py
+
     """
 
-    def __init__(self, loss_weight=1.0):
-        super(SRCCLoss, self).__init__()
+    def __init__(self, detach=False, loss_weight=1.0):
+        super(RankLoss, self).__init__()
         self.loss_weight = loss_weight
 
     def forward(self, pred, target):
-        pred = torch.sort(pred, dim=-1)
-        target = torch.sort(target, dim=-1)
-        return self.loss_weight * plcc_loss(pred, target)
+        if pred.size(0) > 1:  #
+            ranking_loss = F.relu((pred - pred.t()) * torch.sign((target.t() - target)))
+            scale = 1 + torch.max(ranking_loss.detach())
+            loss = ranking_loss.mean() / scale
+        else:
+            loss = F.l1_loss(pred, target.detach())  # 0 for batch with single sample.
+        return self.loss_weight * loss
 
 
 @LOSS_REGISTRY.register()
 class ListMonotonicLoss(nn.Module):
-
+    # 早就有人提出过了，晚出生真是太难了
     def __init__(self, loss_weight=1.0):
         """
         eps：控制分值的间隔

@@ -43,6 +43,12 @@ def safe_sqrt(x: torch.Tensor) -> torch.Tensor:
     return torch.sqrt(x + EPS)
 
 
+def diff_round(x: torch.Tensor) -> torch.Tensor:
+    r"""Differentiable round.
+    """
+    return x - x.detach() + x.round()
+
+
 def normalize_img_with_guass(img: torch.Tensor,
                              kernel_size: int = 7,
                              sigma: float = 7. / 6,
@@ -115,7 +121,7 @@ def get_meshgrid(size: Tuple[int, int]) -> torch.Tensor:
     else:
         # Even
         y = torch.arange(-size[1] / 2, size[1] / 2) / size[1]
-    return torch.meshgrid(x, y)
+    return torch.meshgrid(x, y, indexing='ij')
 
 
 def estimate_ggd_param(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
